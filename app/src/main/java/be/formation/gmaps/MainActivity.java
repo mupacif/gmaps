@@ -1,6 +1,7 @@
 package be.formation.gmaps;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Build;
@@ -9,12 +10,20 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.Places;
+import com.google.android.gms.location.places.ui.PlacePicker;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
@@ -32,13 +41,38 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     GoogleApiClient mgac;
     Location loc;
     LocationRequest lreq;
+    int PLACE_PICKER_REQUEST = 1;
+    Button picker;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        picker.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
+
+                try {
+                    startActivityForResult(builder.build(MainActivity.this), PLACE_PICKER_REQUEST);
+                } catch (GooglePlayServicesRepairableException e) {
+                    e.printStackTrace();
+                } catch (GooglePlayServicesNotAvailableException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        });
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         MapFragment mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        mgac = new GoogleApiClient.Builder(this).addApi(LocationServices.API).addConnectionCallbacks(this).addOnConnectionFailedListener(this).build();
+        mgac = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addApi(Places.GEO_DATA_API)
+                .addApi(Places.PLACE_DETECTION_API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
         Log.i(TAG,(mgac!=null)+"/gmac");
 
     }
@@ -156,5 +190,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onLocationChanged(Location location) {
       loc = location;
         flyTo(location);
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == PLACE_PICKER_REQUEST) {
+            if (resultCode == RESULT_OK) {
+                Place place = PlacePicker.getPlace(data, this);
+                String toastMsg = String.format("Place: %s", place.getName());
+                Toast.makeText(this, toastMsg, Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }
